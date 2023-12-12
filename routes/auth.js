@@ -9,7 +9,7 @@ const { body, validationResult } = require("express-validator");
 const OneTimePassword = require("../models/OneTimePass");
 const GenerateOTP = require("../helper/GenerateOtp");
 const MailTransport = require("../helper/SendMails");
-const VerificationEmailBody = require("../helper/VerificationMailBody");
+const { VerificationEmailBody } = require("../helper/VerificationMailBody");
 const fetchusers = require("../middleware/fetchusers");
 const ForgotPassToken = require("../helper/ForgotPassTokenGenerater");
 const ForgotPass = require("../models/ForgotPassword");
@@ -21,9 +21,9 @@ let success = false;
 const saltRound = 20;
 
 // ? 'CREATEUSER' // Post Request === 1 ===> this request is usefull for creating a
-//?  TO TEST THE API ==> {" http://localhost:500/app/api/auth/createuser "}
+//?  TO TEST THE API ==> {" http://localhost:500/app/api/auth/register "}
 routes.post(
-  "/createuser",
+  "/register",
   [
     body("name", "the length of the name is etlist 3").exists(),
     body("username", "the length of the username is etlist 3").exists(),
@@ -39,11 +39,12 @@ routes.post(
     }),
   ],
   async (req, res) => {
-    const result = validationResult(req);
-    if (!result.isEmpty()) {
-      return res.json({ result });
-    }
+   
     try {
+      const result = validationResult(req);
+      if (!result.isEmpty()) {
+        return res.json({ result });
+      }
       //  firstly we find that the user is excisting or not
       //  we are chacking the user on the basis of the username and you can use different parameter on your requirment
       let user = await Users.findOne({ username: req.body.username });
@@ -75,15 +76,25 @@ routes.post(
         owner: user._id,
         oneTimeToken: hashedOneTimePass,
       });
+      console.log("complete 1");
       // now after generating the otp now we are sending the generated otp to the user
       // ! for test we are using the mailtrap but in production we use gmail to send mail
       // ? we can also use gmail now but the email are dummy .................
-      MailTransport.sendMail({
-        from: process.env.EMAIL_ADDRESS_OF_AUTHER,
-        to: user.email,
-        subject: "Email Verification",
-        html: VerificationEmailBody(GeneratedOneTimePass),
-      });
+      try {
+        MailTransport.sendMail({
+          from: process.env.EMAIL_ADDRESS_OF_AUTHER,
+          to: user.email,
+          subject: "Email Verification",
+          html: VerificationEmailBody(GeneratedOneTimePass),
+        });
+      } catch (error) {
+        res.json({
+          error: error,
+          message:
+            "there is an error sending email please double chack your email",
+        });
+      }
+
       // after the authentication we are giving the auth token in the exchange of the login the auth token contain the id of user which is required so that you allow the user th change
       var tooken = jwt.sign(
         {
@@ -91,6 +102,7 @@ routes.post(
         },
         process.env.JWT_SECRETE
       );
+      console.log("complete 2");
       success = true;
       let Message =
         "An Verification Otp is Send To Your Provided Email Address";
@@ -100,7 +112,9 @@ routes.post(
     } catch (error) {
       // console.error(error.message);
       success = false;
-      res.status(500).json({ success, message: "internel server error" });
+      res
+        .status(500)
+        .json({ success, message: "internel server error", error: error });
     }
   }
 );
@@ -122,13 +136,14 @@ routes.post(
     }),
   ],
   async (req, res) => {
-    const result = validationResult(req);
-    if (!result.isEmpty()) {
-      return res.json({ result });
-    }
-    // with the help of debuging we are gating "username" , "password" from the body of the request
-    const { username, password } = req.body;
+   
     try {
+      const result = validationResult(req);
+      if (!result.isEmpty()) {
+        return res.json({ result });
+      }
+      // with the help of debuging we are gating "username" , "password" from the body of the request
+      const { username, password } = req.body;
       let verificationMessage = "";
       let user = await Users.findOne({ username });
       if (!user) {
@@ -166,12 +181,22 @@ routes.post(
           verificationToken: hashedVerificationOTP,
         });
         // to verify it we will send it the user in the orignal form
-        MailTransport.sendMail({
-          from: process.env.EMAIL_ADDRESS_OF_AUTHER,
-          to: user.email,
-          subject: "Two Step Verification Email",
-          html: VerificationEmailBody(TwoStepVerificationOTP),
-        });
+        try {
+          // ? sending the mail
+          MailTransport.sendMail({
+            from: process.env.EMAIL_ADDRESS_OF_AUTHER,
+            to: user.email,
+            subject: "Two Step Verification Email",
+            html: VerificationEmailBody(TwoStepVerificationOTP),
+          });
+        } catch (error) {
+          // * if error occured
+          res.json({
+            error: error,
+            message:
+              "there is an error sending email please double chack your email",
+          });
+        }
 
         await twostepverifiy.save();
         verificationMessage =
@@ -200,13 +225,14 @@ routes.post(
   [body("oneTimeToken", "Plese Enter The Valid Otp Token").exists()],
   fetchusers,
   async (req, res) => {
-    const result = validationResult(req);
-    if (!result.isEmpty()) {
-      return res.json({ result });
-    }
-    // we are gatting the otp from the body of the request
-    const { oneTimeToken } = req.body;
+
     try {
+      const result = validationResult(req);
+      if (!result.isEmpty()) {
+        return res.json({ result });
+      }
+      // we are gatting the otp from the body of the request
+      const { oneTimeToken } = req.body;
       // coz we are gatting the token then verifying through otp so that means that we have auth tokeen and if we have auth token than we have user  id
       let Newuser = req.user;
       let user = await Users.findById(Newuser);
@@ -321,12 +347,13 @@ routes.post(
     ).isEmail(),
   ],
   async (req, res) => {
-    const result = validationResult(req);
+    
+    try {
+      const result = validationResult(req);
     if (!result.isEmpty()) {
       return res.json({ result });
     }
     const { email } = req.body;
-    try {
       const user = await Users.findOne({
         email: email,
       });
@@ -378,12 +405,13 @@ routes.post(
   TokenDecoder,
   [body("password", "password is required it can not be empty")],
   async (req, res) => {
-    const result = validationResult(req);
-    if (!result.isEmpty()) {
-      return res.json({ result });
-    }
-    const { password } = req.body;
+   
     try {
+      const result = validationResult(req);
+      if (!result.isEmpty()) {
+        return res.json({ result });
+      }
+      const { password } = req.body;
       const FindUser = await Users.findById(req.user);
       if (!FindUser) {
         res.json({ success, message: "can not find user in database" });
@@ -516,7 +544,7 @@ routes.put(
         { $set: updatedUserInfo },
         { new: true }
       );
-      res.json({message:"the user information is changed"});
+      res.json({ message: "the user information is changed" });
     } catch (error) {
       success = false;
       res

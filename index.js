@@ -12,7 +12,7 @@ app.use(express.json());
 
 app.use('/app/api/auth' , require('./routes/auth'))
 app.use('/app/api/project' , require('./routes/project'))
-
+app.use('/app/api/customerContactInfo' , require('./routes/customerContactInfo'))
 app.listen(port , ()=>{
     console.log(`backend app listing on http://localhost:${port}`)
 })
