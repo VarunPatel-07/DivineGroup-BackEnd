@@ -15,12 +15,12 @@ const UserSchema = new Schema({
   email: {
     type: String,
     required: true,
-    unique: true,
+    
   },
   password: {
     type: String,
     required: true,
-    unique: true,
+   
   },
   verified: {
     type: Boolean,
@@ -38,5 +38,5 @@ const UserSchema = new Schema({
     default: false,
   },
 });
-const User = mongoose.model("user", UserSchema);
+const User = mongoose.model("users", UserSchema);
 module.exports = User;

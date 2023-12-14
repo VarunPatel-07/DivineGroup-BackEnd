@@ -28,18 +28,9 @@ routes.post(
     body("name", "the length of the name is etlist 3").exists(),
     body("username", "the length of the username is etlist 3").exists(),
     body("email", "email is invalid").isEmail(),
-    body(
-      "password",
-      "password must contain Eight character , one Uppercase letter , one Number , one Special Character"
-    ).isStrongPassword({
-      minLength: 8,
-      minUppercase: 1,
-      minNumbers: 1,
-      minSymbols: 1,
-    }),
   ],
   async (req, res) => {
-   
+    const { name, email, password, username ,role } = req.body;
     try {
       const result = validationResult(req);
       if (!result.isEmpty()) {
@@ -47,7 +38,7 @@ routes.post(
       }
       //  firstly we find that the user is excisting or not
       //  we are chacking the user on the basis of the username and you can use different parameter on your requirment
-      let user = await Users.findOne({ username: req.body.username });
+      let user = await Users.findOne({ username: username });
       if (user) {
         return res
           .status(400)
@@ -56,13 +47,14 @@ routes.post(
       //  now we hasd the password which is most importent thing so we can ensaure the securiy of the users and the website also
       // for the hashing of password we use bcrypt js
       const salt = bcrypt.genSaltSync(saltRound);
-      const hashedPassword = bcrypt.hashSync(req.body.password, salt);
+      const hashedPassword = bcrypt.hashSync(password, salt);
       //    if no user exist whit the same username then we create new user
-      user = new Users({
-        name: req.body.name,
-        username: req.body.username,
-        email: req.body.email,
+      user = await Users.create({
+        name: name,
+        username: username,
+        email: email,
         password: hashedPassword,
+        role:role
       });
       // now we have to atonticate the email of the user that the email is authenticate
       const GeneratedOneTimePass = GenerateOTP();
@@ -72,13 +64,22 @@ routes.post(
         GeneratedOneTimePass,
         OneTimesalt
       );
-      const OneTimePass = new OneTimePassword({
+      const OneTimePass = await OneTimePassword.create({
         owner: user._id,
         oneTimeToken: hashedOneTimePass,
       });
-      console.log("complete 1");
+
+      // after the authentication we are giving the auth token in the exchange of the login the auth token contain the id of user which is required so that you allow the user th change
+     
+
+      var tooken = jwt.sign(
+        {
+          foo: user._id,
+        },
+        process.env.JWT_SECRETE
+      );
       // now after generating the otp now we are sending the generated otp to the user
-      // ! for test we are using the mailtrap but in production we use gmail to send mail
+
       // ? we can also use gmail now but the email are dummy .................
       try {
         MailTransport.sendMail({
@@ -95,19 +96,11 @@ routes.post(
         });
       }
 
-      // after the authentication we are giving the auth token in the exchange of the login the auth token contain the id of user which is required so that you allow the user th change
-      var tooken = jwt.sign(
-        {
-          foo: user._id,
-        },
-        process.env.JWT_SECRETE
-      );
-      console.log("complete 2");
       success = true;
       let Message =
         "An Verification Otp is Send To Your Provided Email Address";
-      await OneTimePass.save();
-      await user.save();
+    
+
       res.json({ success, tooken, message: Message });
     } catch (error) {
       // console.error(error.message);
@@ -136,7 +129,6 @@ routes.post(
     }),
   ],
   async (req, res) => {
-   
     try {
       const result = validationResult(req);
       if (!result.isEmpty()) {
@@ -225,7 +217,6 @@ routes.post(
   [body("oneTimeToken", "Plese Enter The Valid Otp Token").exists()],
   fetchusers,
   async (req, res) => {
-
     try {
       const result = validationResult(req);
       if (!result.isEmpty()) {
@@ -347,13 +338,12 @@ routes.post(
     ).isEmail(),
   ],
   async (req, res) => {
-    
     try {
       const result = validationResult(req);
-    if (!result.isEmpty()) {
-      return res.json({ result });
-    }
-    const { email } = req.body;
+      if (!result.isEmpty()) {
+        return res.json({ result });
+      }
+      const { email } = req.body;
       const user = await Users.findOne({
         email: email,
       });
@@ -405,7 +395,6 @@ routes.post(
   TokenDecoder,
   [body("password", "password is required it can not be empty")],
   async (req, res) => {
-   
     try {
       const result = validationResult(req);
       if (!result.isEmpty()) {
@@ -445,20 +434,15 @@ routes.post(
 //?  TO TEST THE API ==> {"http://localhost:500/app/api/auth/fetchallusers"}
 routes.post("/fetchallusers", fetchusers, async (req, res) => {
   try {
-    const FetchAllUsers = await Users.findById(req.user).select("-password");
-    if (!FetchAllUsers) {
-      res.status(404).json({
-        success,
-        message: "some thing wrong happing can not getting  user data",
-      });
-    }
-    if (FetchAllUsers.role == "admin") {
+
+    const Check = await Users.findById(req.user).select('role')
+    if(Check.role == "admin"){
+
+      const FetchAllUsers = await Users.find().find({_id : {$ne:req.user}})
       res.json(FetchAllUsers);
+    }else{
+      return res.json({message:"only admin is allowed"})
     }
-    res.status(404).json({
-      success,
-      message: "only admin is allowed to access the users information ",
-    });
   } catch (error) {
     success = false;
     res
