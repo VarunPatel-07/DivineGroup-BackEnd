@@ -12,7 +12,7 @@ const MessageModelSchema = new Schema(
       require: true,
       trim: true,
     },
-    Chat: {
+    ChatId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "chat",
     },
@@ -21,3 +21,5 @@ const MessageModelSchema = new Schema(
     timestamps: true,
   }
 );
+const MessageModel = mongoose.model("messages", MessageModelSchema);
+module.exports = MessageModel;

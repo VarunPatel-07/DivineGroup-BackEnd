@@ -18,7 +18,7 @@ const { json } = require("express");
 const TwoStepVerification = require("../models/TwoStepVerify");
 
 let success = false;
-const saltRound = 20;
+const saltRound = 10;
 
 // ? 'CREATEUSER' // Post Request === 1 ===> this request is usefull for creating a
 //?  TO TEST THE API ==> {" http://localhost:500/app/api/auth/register "}
@@ -28,9 +28,18 @@ routes.post(
     body("name", "the length of the name is etlist 3").exists(),
     body("username", "the length of the username is etlist 3").exists(),
     body("email", "email is invalid").isEmail(),
+    body(
+      "password",
+      "password must contain Eight character , one Uppercase letter , one Number , one Special Character"
+    ).isStrongPassword({
+      
+      minUppercase: 1,
+      minNumbers: 1,
+     
+    }),
   ],
   async (req, res) => {
-    const { name, email, password, username ,role } = req.body;
+    const { name, email, password, username, role } = req.body;
     try {
       const result = validationResult(req);
       if (!result.isEmpty()) {
@@ -48,14 +57,16 @@ routes.post(
       // for the hashing of password we use bcrypt js
       const salt = bcrypt.genSaltSync(saltRound);
       const hashedPassword = bcrypt.hashSync(password, salt);
+      
       //    if no user exist whit the same username then we create new user
       user = await Users.create({
         name: name,
         username: username,
         email: email,
         password: hashedPassword,
-        role:role
+        role: role,
       });
+
       // now we have to atonticate the email of the user that the email is authenticate
       const GeneratedOneTimePass = GenerateOTP();
       // to maintain the security of the app we are also hashing the otp
@@ -64,20 +75,20 @@ routes.post(
         GeneratedOneTimePass,
         OneTimesalt
       );
-      const OneTimePass = await OneTimePassword.create({
+      await OneTimePassword.create({
         owner: user._id,
         oneTimeToken: hashedOneTimePass,
       });
 
       // after the authentication we are giving the auth token in the exchange of the login the auth token contain the id of user which is required so that you allow the user th change
-     
 
-      var tooken = jwt.sign(
+      var token = jwt.sign(
         {
           foo: user._id,
         },
         process.env.JWT_SECRETE
       );
+
       // now after generating the otp now we are sending the generated otp to the user
 
       // ? we can also use gmail now but the email are dummy .................
@@ -99,9 +110,8 @@ routes.post(
       success = true;
       let Message =
         "An Verification Otp is Send To Your Provided Email Address";
-    
 
-      res.json({ success, tooken, message: Message });
+      res.json({ success, token, message: Message });
     } catch (error) {
       // console.error(error.message);
       success = false;
@@ -122,40 +132,39 @@ routes.post(
       "password",
       "password must contain Eight character , one Uppercase letter , one Number , one Special Character"
     ).isStrongPassword({
-      minLength: 8,
+      
       minUppercase: 1,
       minNumbers: 1,
-      minSymbols: 1,
+     
     }),
   ],
   async (req, res) => {
+     const result = validationResult(req);
+     if (!result.isEmpty()) {
+       return res.json({ result });
+     }
+    const { username, password } = req.body;
     try {
-      const result = validationResult(req);
-      if (!result.isEmpty()) {
-        return res.json({ result });
-      }
+     
       // with the help of debuging we are gating "username" , "password" from the body of the request
-      const { username, password } = req.body;
+      
       let verificationMessage = "";
-      let user = await Users.findOne({ username });
+      let user = await Users.findOne({ username: username });
+     
       if (!user) {
         return res
           .status(400)
           .json({ message: "Sorry a user with this username dose not exists" });
       }
       const comperPassword = bcrypt.compareSync(password, user.password);
+     
       if (!comperPassword) {
         return res
           .status(200)
           .json({ message: "Try To Login With Correct Credentials" });
       }
       // after the authentication we are giving the auth token in the exchange of the login the auth token contain the id of user which is required so that you allow the user th change
-      var tooken = jwt.sign(
-        {
-          foo: user._id,
-        },
-        process.env.JWT_SECRETE
-      );
+
       // now we check that the two step verification of user is true or not
 
       if (user.twoStepVerification) {
@@ -194,12 +203,17 @@ routes.post(
         verificationMessage =
           "a verification otp is send to your email address because you enabeld the two step verification";
       }
-
+      const token = jwt.sign(
+        {
+          foo: user._id,
+        },
+        process.env.JWT_SECRETE
+      );
+    
       success = true;
       res.json({
-        success,
-        tooken,
-        twoStepVerification: user.twoStepVerification,
+        success: success,
+        token: token,
         message: verificationMessage,
       });
     } catch (error) {
@@ -434,14 +448,12 @@ routes.post(
 //?  TO TEST THE API ==> {"http://localhost:500/app/api/auth/fetchallusers"}
 routes.post("/fetchallusers", fetchusers, async (req, res) => {
   try {
-
-    const Check = await Users.findById(req.user).select('role')
-    if(Check.role == "admin"){
-
-      const FetchAllUsers = await Users.find().find({_id : {$ne:req.user}})
+    const Check = await Users.findById(req.user).select("role");
+    if (Check.role == "admin") {
+      const FetchAllUsers = await Users.find().find({ _id: { $ne: req.user } });
       res.json(FetchAllUsers);
-    }else{
-      return res.json({message:"only admin is allowed"})
+    } else {
+      return res.json({ message: "only admin is allowed" });
     }
   } catch (error) {
     success = false;
