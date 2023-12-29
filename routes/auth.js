@@ -32,17 +32,17 @@ routes.post(
       "password",
       "password must contain Eight character , one Uppercase letter , one Number , one Special Character"
     ).isStrongPassword({
-      
       minUppercase: 1,
       minNumbers: 1,
-     
     }),
   ],
   async (req, res) => {
+    console.log(req.body)
     const { name, email, password, username, role } = req.body;
     try {
       const result = validationResult(req);
       if (!result.isEmpty()) {
+        console.log(result);
         return res.json({ result });
       }
       //  firstly we find that the user is excisting or not
@@ -57,7 +57,7 @@ routes.post(
       // for the hashing of password we use bcrypt js
       const salt = bcrypt.genSaltSync(saltRound);
       const hashedPassword = bcrypt.hashSync(password, salt);
-      
+
       //    if no user exist whit the same username then we create new user
       user = await Users.create({
         name: name,
@@ -132,32 +132,29 @@ routes.post(
       "password",
       "password must contain Eight character , one Uppercase letter , one Number , one Special Character"
     ).isStrongPassword({
-      
       minUppercase: 1,
       minNumbers: 1,
-     
     }),
   ],
   async (req, res) => {
-     const result = validationResult(req);
-     if (!result.isEmpty()) {
-       return res.json({ result });
-     }
+    const result = validationResult(req);
+    if (!result.isEmpty()) {
+      return res.json({ result });
+    }
     const { username, password } = req.body;
     try {
-     
       // with the help of debuging we are gating "username" , "password" from the body of the request
-      
+
       let verificationMessage = "";
       let user = await Users.findOne({ username: username });
-     
+
       if (!user) {
         return res
           .status(400)
           .json({ message: "Sorry a user with this username dose not exists" });
       }
       const comperPassword = bcrypt.compareSync(password, user.password);
-     
+
       if (!comperPassword) {
         return res
           .status(200)
@@ -209,7 +206,7 @@ routes.post(
         },
         process.env.JWT_SECRETE
       );
-    
+
       success = true;
       res.json({
         success: success,
