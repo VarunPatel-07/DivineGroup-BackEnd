@@ -59,7 +59,7 @@ routes.post(
 
 // ? FETCH CHAT ROUTE
 // to test the api ==> {http://localhost:500/app/api/chat/fetchchat}
-routes.get("/fetchchat", fetchusers, async (req, res) => {
+routes.get("/fetchChat", fetchusers, async (req, res) => {
   try {
     const FetchChat = await Chat.find({
       users: { $elemMatch: { $eq: req.user } },
@@ -187,7 +187,7 @@ routes.put(
       if (chat.users.includes(usersId)) {
         return res.status(500).json({ message: "the user already exists" });
       }
-     
+
       if (chat.GroupAdmin.toString() !== req.user) {
         return res.send({ message: "not allowed" });
       }
@@ -227,7 +227,8 @@ routes.put(
       "usersId",
       "the id of the user is required to add in the group"
     ).exists(),
-  ],fetchusers,
+  ],
+  fetchusers,
   async (req, res) => {
     try {
       const { usersId } = req.body;
@@ -236,15 +237,15 @@ routes.put(
         return res.json({ result });
       }
       const chat = await Chat.findById(req.params.id).select("-password");
-  console.log(chat.GroupAdmin.toString() !== req.user);
+      console.log(chat.GroupAdmin.toString() !== req.user);
       if (!chat.users.includes(usersId)) {
         return res.status(500).json({ message: "the user does not  exists" });
       }
-    
+
       console.log(chat.GroupAdmin.toString());
-      console.log(req.user)
+      console.log(req.user);
       if (chat.GroupAdmin.toString() !== req.user) {
-        return res.send({message:"not allowed"})
+        return res.send({ message: "not allowed" });
       }
       const UpdatedChat = await Chat.findByIdAndUpdate(
         req.params.id,
@@ -266,4 +267,20 @@ routes.put(
     }
   }
 );
+//?  TO TEST THE API ==> {"http://localhost:500/app/api/chat/fetchAllUsersForChat"}
+routes.get("/fetchAllUsersForChat", fetchusers, async (req, res) => {
+  
+  try {
+    const FetchUsers = await Users.find({
+      $or: [
+        { name: { $regex: req.query.search, $options: "i" } },
+        { username: { $regex: req.query.search, $options: "i" } },
+      ],
+    }).find({ _id: { $ne: req.user } });
+    
+    res.json(FetchUsers);
+  } catch (error) {
+    console.log(error);
+  }
+});
 module.exports = routes;

@@ -6,44 +6,93 @@ const routes = express.Router();
 //  this is a component from express validater which is used to perform some backend vadiation so that we can perform some validation task on the backend
 const { body, validationResult } = require("express-validator");
 const fetchusers = require("../middleware/fetchusers");
+const { ImageUploader } = require("../middleware/Multer");
+const cloudinary = require("cloudinary").v2;
 let success = false;
+
+const handleCloudUpload = async (file) => {
+  const response = await cloudinary.uploader.upload(file, {
+    resource_type: "auto",
+  });
+  return response;
+};
 
 // ? 'ADD NOTE FUNCTION' // 'POST' Request === 1 ===> this is a post request which is used to add note in the database and show user specific progect
 //?  TO TEST THE API ==> {"http://localhost:500/app/api/project/addproject"}
 
 routes.post(
   "/addproject",
+  ImageUploader,
   fetchusers,
   [
-    body("projectName", "ProjectName OF Project Cannot Be Empty").exists(),
-    body("summary", "summary OF Project Name Cannot Be Empty").exists(),
-    body("description", "Description OF Project Name Cannot Be Empty").exists(),
-    body("location", "Location OF Project Name Cannot Be Empty").exists(),
+    body("ProjectName", "ProjectName OF Project Cannot Be Empty").exists(),
+    body("MetaData", "MetaData OF Project Cannot Be Empty").exists(),
+    body("Description", "Description OF Project Name Cannot Be Empty").exists(),
+    body("Address", "Address OF Project Name Cannot Be Empty").exists(),
   ],
   async (req, res) => {
+    // todo ::=====> use aws s3 bucket in the production version
+    const imagearr = req.files;
+
+    let galleryImagePaths = imagearr.GalleryImage.map((images) => images);
+
     const result = validationResult(req);
     if (!result.isEmpty()) {
       return res.json({ result });
     }
-    const { projectName, summary, description, location, private } = req.body;
+    const {
+      ProjectName,
+      MetaData,
+      Description,
+      Address,
+      Pincode,
+      District,
+      private,
+    } = req.body;
+
     try {
+      cloudinary.config({
+        cloud_name: process.env.CLOUD_NAME,
+        api_key: process.env.API_KEY,
+        api_secret: process.env.API_SECRET,
+      });
+      const TitleB64 = Buffer.from(imagearr.TitleImage[0].buffer).toString(
+        "base64"
+      );
+      let TitleDataURI =
+        "data:" + imagearr.TitleImage[0].mimetype + ";base64," + TitleB64;
+      const CloudTitleImage = await handleCloudUpload(TitleDataURI);
+      const CloudGalleryImage = [];
+      for (const SingleImage of galleryImagePaths) {
+        const GalleryBase64 = Buffer.from(SingleImage.buffer).toString(
+          "base64"
+        );
+        let GalleryImgDataURI =
+          "data:" + SingleImage.mimetype + ";base64," + GalleryBase64;
+        const CloudGalleryImg = await handleCloudUpload(GalleryImgDataURI);
+
+        CloudGalleryImage.push(CloudGalleryImg.secure_url);
+      }
+
       const project = new Projects({
         userid: req.user,
-        projectName: projectName,
-        summary: summary,
-        description: description,
-        location: {
-          city: location.city,
-          state: location.state,
-          address: location.address,
-        },
+        projectName: ProjectName,
+        metadata: MetaData,
+        description: Description,
+        pincode: Pincode,
+        district: District,
+        address: Address,
         private: private,
+        TitleImage: CloudTitleImage.secure_url,
+        GalleryImage: CloudGalleryImage,
       });
+
       const saveProject = await project.save();
 
       res.json(saveProject);
     } catch (error) {
       success = false;
+      console.log(error);
       res
         .status(500)
         .json({ success, message: "internel server error at add note" });
@@ -69,6 +118,7 @@ routes.get("/fetchPublicProjects", async (req, res) => {
 routes.get("/fetchAllUsersProject", fetchusers, async (req, res) => {
   try {
     const projects = await Projects.find({ userid: req.user });
+
     res.json(projects);
   } catch (error) {
     success = false;
@@ -76,6 +126,16 @@ routes.get("/fetchAllUsersProject", fetchusers, async (req, res) => {
   }
 });
 
+routes.get("/fetchSpecificProject/:id", fetchusers, async (req, res) => {
+  try {
+    let project = await Projects.findById(req.params.id);
+
+    res.json(project);
+  } catch (error) {
+    success = false;
+    res.status(500).json({ success, message: "internel server error" });
+  }
+});
 // ? 'UPDATE PROJECT DETAILS' // 'PUT' Request === 4 ===> this is a put request which is used to update the project details
 //?  TO TEST THE API ==> {"http://localhost:500/app/api/project/updateProjectInfo/:id"}
 
@@ -167,7 +227,7 @@ routes.post("/TogelProjectStatus/:id", fetchusers, async (req, res) => {
       status = "private";
     }
     await project.save();
-    res.json({message:`the project is now ${status}`})
+    res.json({ message: `the project is now ${status}` });
   } catch (error) {}
 });
 

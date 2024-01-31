@@ -11,16 +11,17 @@ const UserSchema = new Schema({
     type: String,
     required: true,
   },
+  ProfileImage: {
+    type: String,
+  },
 
   email: {
     type: String,
     required: true,
-    
   },
   password: {
     type: String,
     required: true,
-   
   },
   verified: {
     type: Boolean,

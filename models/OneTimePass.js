@@ -11,7 +11,7 @@ const OneTimePassSchema = new Schema({
   },
   createdAt: {
     type: Date,
-    expires: 300,
+    expires: 1000,
     default: Date.now(),
   },
 });

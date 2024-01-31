@@ -16,7 +16,10 @@ const ForgotPass = require("../models/ForgotPassword");
 const TokenDecoder = require("../middleware/TokenDecoder");
 const { json } = require("express");
 const TwoStepVerification = require("../models/TwoStepVerify");
-
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
+const { ProfileImageUploader } = require("../middleware/Multer");
+const cloudinary = require("cloudinary").v2;
 let success = false;
 const saltRound = 10;
 
@@ -24,6 +27,7 @@ const saltRound = 10;
 //?  TO TEST THE API ==> {" http://localhost:500/app/api/auth/register "}
 routes.post(
   "/register",
+  upload.none(),
   [
     body("name", "the length of the name is etlist 3").exists(),
     body("username", "the length of the username is etlist 3").exists(),
@@ -37,8 +41,7 @@ routes.post(
     }),
   ],
   async (req, res) => {
-    console.log(req.body)
-    const { name, email, password, username, role } = req.body;
+    const { username, name, email, password, role } = req.body;
     try {
       const result = validationResult(req);
       if (!result.isEmpty()) {
@@ -70,10 +73,10 @@ routes.post(
       // now we have to atonticate the email of the user that the email is authenticate
       const GeneratedOneTimePass = GenerateOTP();
       // to maintain the security of the app we are also hashing the otp
-      const OneTimesalt = bcrypt.genSaltSync(saltRound);
+      const OneTimeSalt = bcrypt.genSaltSync(saltRound);
       const hashedOneTimePass = bcrypt.hashSync(
         GeneratedOneTimePass,
-        OneTimesalt
+        OneTimeSalt
       );
       await OneTimePassword.create({
         owner: user._id,
@@ -146,11 +149,11 @@ routes.post(
       // with the help of debuging we are gating "username" , "password" from the body of the request
 
       let verificationMessage = "";
-      let user = await Users.findOne({ username: username });
+      let user = await Users.find({ username: username });
 
       if (!user) {
         return res
-          .status(400)
+          .status(200)
           .json({ message: "Sorry a user with this username dose not exists" });
       }
       const comperPassword = bcrypt.compareSync(password, user.password);
@@ -209,6 +212,7 @@ routes.post(
 
       success = true;
       res.json({
+        twoStepVerification: user.twoStepVerification,
         success: success,
         token: token,
         message: verificationMessage,
@@ -231,10 +235,12 @@ routes.post(
     try {
       const result = validationResult(req);
       if (!result.isEmpty()) {
+        console.log(result);
         return res.json({ result });
       }
       // we are gatting the otp from the body of the request
       const { oneTimeToken } = req.body;
+
       // coz we are gatting the token then verifying through otp so that means that we have auth tokeen and if we have auth token than we have user  id
       let Newuser = req.user;
       let user = await Users.findById(Newuser);
@@ -262,7 +268,8 @@ routes.post(
       user.verified = true;
       await user.save();
       await OneTimePassword.findByIdAndDelete(PreExistOtp._id);
-      res.json({ message: "your email is verified successfully" });
+      success = true;
+      res.json({ success, message: "your email is verified successfully" });
     } catch (error) {
       success = false;
       res.status(500).json({ success, message: "internel server error" });
@@ -320,7 +327,7 @@ routes.post("/resendotp", fetchusers, async (req, res) => {
 
 // ? 'GETING THE USER INFO' // Post Request === 5 ===> this rout is used to get the user info with the help of auth token so that we can show case that info in the name of user users profile img etc
 //?  TO TEST THE API ==> {" http://localhost:500/app/api/auth/getuserinfo"}
-routes.post("/getuserinfo", fetchusers, async (req, res) => {
+routes.get("/getuserinfo", fetchusers, async (req, res) => {
   try {
     const FetchUser = await Users.findById(req.user).select("-password");
     if (!FetchUser) {
@@ -328,8 +335,9 @@ routes.post("/getuserinfo", fetchusers, async (req, res) => {
         success,
         message: "some thing wrong happing can not getting  user data",
       });
+    } else {
+      res.json(FetchUser);
     }
-    res.json(FetchUser);
   } catch (error) {
     success = false;
     res
@@ -511,34 +519,59 @@ routes.post(
 
 // ? 'UPDATING THE USER INFO' // Post Request === 10 ===> this post request is used to update the user info but we dont give autharity to chane password to chane password we use the forget password methode
 //?  TO TEST THE API ==> {"http://localhost:500/app/api/auth/updateuserinfo"}
+const handleCloudUpload = async (file) => {
+  const response = await cloudinary.uploader.upload(file, {
+    resource_type: "auto",
+  });
+  return response;
+};
 
 routes.put(
-  "/updateuserinfo",
-
+  "/updateUserinfo",
+  ProfileImageUploader,
   fetchusers,
   async (req, res) => {
     const result = validationResult(req);
-
+    const imagearr = req.files;
+   
     try {
-      const { name, username, email } = req.body;
+      cloudinary.config({
+        cloud_name: process.env.CLOUD_NAME,
+        api_key: process.env.API_KEY,
+        api_secret: process.env.API_SECRET,
+      });
+      const ProfileImageB64 = Buffer.from(
+        imagearr.ProfileImage[0].buffer
+      ).toString("base64");
+      let ProfileImageURI =
+        "data:" +
+        imagearr.ProfileImage[0].mimetype +
+        ";base64," +
+        ProfileImageB64;
+      const CloudProfileImage = await handleCloudUpload(ProfileImageURI);
 
+      const { name, username, email } = req.body;
+      console.log("CloudProfileImage", CloudProfileImage);
       const updatedUserInfo = {};
-      if (name) {
+      if (name != "undefined") {
         updatedUserInfo.name = name;
       }
-      if (username) {
+      if (username != "undefined") {
         updatedUserInfo.username = username;
       }
-      if (email) {
+      if (email != "undefined") {
         updatedUserInfo.email = email;
       }
+      updatedUserInfo.ProfileImage = CloudProfileImage.secure_url;
       const userInfo = await Users.findByIdAndUpdate(
         req.user,
         { $set: updatedUserInfo },
         { new: true }
       );
+
       res.json({ message: "the user information is changed" });
     } catch (error) {
+      console.log(error);
       success = false;
       res
         .status(500)

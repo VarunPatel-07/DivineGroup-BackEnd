@@ -12,7 +12,7 @@ const fetchusers = async (req, res, next) => {
   try {
     const data = jwt.verify(AuthToken, process.env.JWT_SECRETE);
     req.user = data.foo;
-   
+
     next();
   } catch (error) {
     success = false;
