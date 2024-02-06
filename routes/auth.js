@@ -18,7 +18,7 @@ const { json } = require("express");
 const TwoStepVerification = require("../models/TwoStepVerify");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
-const { ProfileImageUploader } = require("../middleware/Multer");
+const { ProfileImageUploader , handleCloudUpload } = require("../middleware/Multer");
 const cloudinary = require("cloudinary").v2;
 let success = false;
 const saltRound = 10;
@@ -145,19 +145,21 @@ routes.post(
       return res.json({ result });
     }
     const { username, password } = req.body;
+    
     try {
       // with the help of debuging we are gating "username" , "password" from the body of the request
 
       let verificationMessage = "";
-      let user = await Users.find({ username: username });
-
+      let user = await Users.findOne({ username: username });
+      
       if (!user) {
         return res
           .status(200)
           .json({ message: "Sorry a user with this username dose not exists" });
       }
-      const comperPassword = bcrypt.compareSync(password, user.password);
-
+     
+      const comperPassword = await bcrypt.compare(password, user.password);
+      
       if (!comperPassword) {
         return res
           .status(200)
@@ -218,7 +220,7 @@ routes.post(
         message: verificationMessage,
       });
     } catch (error) {
-      // console.error(error.message);
+      console.error(error.message);
       success = false;
       res.status(500).json({ success, message: "internel server error" });
     }
@@ -519,21 +521,16 @@ routes.post(
 
 // ? 'UPDATING THE USER INFO' // Post Request === 10 ===> this post request is used to update the user info but we dont give autharity to chane password to chane password we use the forget password methode
 //?  TO TEST THE API ==> {"http://localhost:500/app/api/auth/updateuserinfo"}
-const handleCloudUpload = async (file) => {
-  const response = await cloudinary.uploader.upload(file, {
-    resource_type: "auto",
-  });
-  return response;
-};
+
 
 routes.put(
   "/updateUserinfo",
   ProfileImageUploader,
   fetchusers,
   async (req, res) => {
-    const result = validationResult(req);
+    
     const imagearr = req.files;
-   
+
     try {
       cloudinary.config({
         cloud_name: process.env.CLOUD_NAME,

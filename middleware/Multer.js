@@ -1,4 +1,12 @@
+require("dotenv").config();
 const multer = require("multer");
+const cloudinary = require("cloudinary").v2;
+// initializing cloudinary 
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
 
 const imgconfig = multer.memoryStorage({
   destination: function (req, file, callback) {
@@ -36,4 +44,12 @@ const ProfileImageUploader = multer({
   },
   
 ]);
-module.exports = {ImageUploader ,  ProfileImageUploader};
+
+// creating a function to upload image
+const handleCloudUpload = async (file) => {
+  const response = await cloudinary.uploader.upload(file, {
+    resource_type: "auto",
+  });
+  return response;
+};
+module.exports = {ImageUploader ,  ProfileImageUploader , handleCloudUpload};

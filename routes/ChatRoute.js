@@ -4,77 +4,88 @@ const { body, validationResult } = require("express-validator");
 const fetchusers = require("../middleware/fetchusers");
 const Chat = require("../models/ChatModel");
 const Users = require("../models/Users");
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
+const {
+  ProfileImageUploader,
+  handleCloudUpload,
+} = require("../middleware/Multer");
+
 let success = false;
 // ? THIS IS THE FIRST API FOR THE CHAT SYSTEM ==> this routes is used to find the chat and if the chat exist then we will use that chat other wise we will create new chat
-// to test the api ==> {http://localhost:500/app/api/chat/createchat}
-routes.post(
-  "/createchat",
-  [body("userId", "id of the user is require to stat the chatting ").exists()],
-  fetchusers,
-  async (req, res) => {
-    const { userId } = req.body;
-    try {
-      const result = validationResult(req);
-      if (!result.isEmpty()) {
-        return res.json({ result });
-      }
-      // now we are find is there is any pre existing chat or note if we find the chat then we populate the "users" and "LatestMessage" because if we not populate the users and latestmessage then we only get the object id but we also want the info  so because of this we populate
-      let chat = await Chat.find({
-        IsGroupChat: false,
-        $and: [
-          { users: { $elemMatch: { $eq: userId } } },
-          { users: { $elemMatch: { $eq: req.user } } },
-        ],
-      })
-        .populate("users", "-password")
-        .populate("LatestMessage");
+// to test the api ==> {http://localhost:500/app/api/chat/createChat}
+routes.post("/createChat", upload.none(), fetchusers, async (req, res) => {
+  const imagearr = req.files;
 
-      chat = await User.populate(chat, {
-        path: "LatestMessage.sender",
-        select: "name avatar username",
-      });
-      if (chat.length > 0) {
-        res.send(chat);
-      } else {
-        const NewChat = await Chat.create({
-          ChatName: "sender",
-          IsGroupChat: false,
-          users: [req.user, userId],
-        });
-        const FullChat = await Chat.findOne({ _id: NewChat._id }).populate(
-          "users",
-          "-password"
-        );
-        res.status(200).json(FullChat);
-      }
-    } catch (error) {
-      res.json({
-        message: "there is an error while creatin a chat",
-        error: error,
-        success: success,
-      });
+  try {
+    const result = validationResult(req);
+    if (!result.isEmpty()) {
+      console.log(result);
+      return res.json({ result });
     }
+
+    const { userId } = req.body;
+
+    // now we are find is there is any pre existing chat or note if we find the chat then we populate the "users" and "LatestMessage" because if we not populate the users and latestmessage then we only get the object id but we also want the info  so because of this we populate
+    let chat = await Chat.find({
+      IsGroupChat: false,
+      $and: [
+        { users: { $elemMatch: { $eq: userId } } },
+        { users: { $elemMatch: { $eq: req.user } } },
+      ],
+    })
+      .populate("users", "-password")
+      .populate("LatestMessage");
+
+    chat = await Users.populate(chat, {
+      path: "LatestMessage.sender",
+      select: "name avatar username",
+    });
+    if (chat.length > 0) {
+      res.send(chat);
+    } else {
+      const NewChat = await Chat.create({
+        ChatName: "sender",
+        IsGroupChat: false,
+        users: [req.user, userId],
+      });
+      const FullChat = await Chat.findOne({ _id: NewChat._id }).populate(
+        "users",
+        "-password"
+      );
+
+      success = true;
+      res.status(200).json({ success, message: "Chat created successfully " });
+    }
+  } catch (error) {
+    console.log(error);
+    res.json({
+      message: "there is an error while creatin a chat",
+      error: error,
+      success: success,
+    });
   }
-);
+});
 
 // ? FETCH CHAT ROUTE
 // to test the api ==> {http://localhost:500/app/api/chat/fetchchat}
 routes.get("/fetchChat", fetchusers, async (req, res) => {
   try {
-    const FetchChat = await Chat.find({
+    let FetchChat = await Chat.find({
       users: { $elemMatch: { $eq: req.user } },
     })
-      .populate("users", "-password")
       .populate("LatestMessage")
-      .populate("GroupAdmin", "-password")
+      .populate("GroupAdmin", "name username ProfileImage")
+      .populate("users")
       .sort({ updatedAt: -1 });
 
-    const AllChat = await Users.populate(FetchChat, {
+    FetchChat = await Users.populate(FetchChat, {
       path: "LatestMessage.sender",
       select: "name username",
     });
-    res.send(AllChat);
+    res.send(FetchChat);
   } catch (error) {
+    console.log(error);
     return res
       .status(500)
       .json({ message: "there is an erroe while featching the error" });
@@ -82,9 +93,11 @@ routes.get("/fetchChat", fetchusers, async (req, res) => {
 });
 
 // ? NOW WE CREATING AN API TO CREAT GROUP CHAT
-// to test the api ==> {http://localhost:500/app/api/chat/creatgroupchat}
+// to test the api ==> {http://localhost:500/app/api/chat/creatGroupGhat}
+
 routes.post(
-  "/creatgroupchat",
+  "/creatGroupGhat",
+  ProfileImageUploader,
   [
     body(
       "usersId",
@@ -97,8 +110,20 @@ routes.post(
   ],
   fetchusers,
   async (req, res) => {
+    const imagearr = req.files;
     try {
+      const ProfileImageB64 = Buffer.from(
+        imagearr.ProfileImage[0].buffer
+      ).toString("base64");
+      let ProfileImageURI =
+        "data:" +
+        imagearr.ProfileImage[0].mimetype +
+        ";base64," +
+        ProfileImageB64;
+      const CloudProfileImage = await handleCloudUpload(ProfileImageURI);
+
       const { usersId, chatName } = req.body;
+
       const result = validationResult(req);
       if (!result.isEmpty()) {
         return res.json({ result });
@@ -112,12 +137,16 @@ routes.post(
         IsGroupChat: true,
         users: UsersArray,
         GroupAdmin: req.user,
+        ProfileImage: CloudProfileImage.secure_url,
       });
+
       const FullGroupChat = await Chat.findOne({ _id: GroupChat._id })
         .populate("users", "-password")
         .populate("GroupAdmin", "-password");
-      res.send(FullGroupChat);
+      success = true;
+      res.send({ success, message: " Group Chat created successfully " });
     } catch (error) {
+      console.log(error);
       return res.json({
         message: "there is an error while creating an group chat",
       });
@@ -269,7 +298,6 @@ routes.put(
 );
 //?  TO TEST THE API ==> {"http://localhost:500/app/api/chat/fetchAllUsersForChat"}
 routes.get("/fetchAllUsersForChat", fetchusers, async (req, res) => {
-  
   try {
     const FetchUsers = await Users.find({
       $or: [
@@ -277,8 +305,20 @@ routes.get("/fetchAllUsersForChat", fetchusers, async (req, res) => {
         { username: { $regex: req.query.search, $options: "i" } },
       ],
     }).find({ _id: { $ne: req.user } });
-    
+
     res.json(FetchUsers);
+  } catch (error) {
+    console.log(error);
+  }
+});
+// ? now we make an api rout that is used to fetch the group chat for the people in your chat is in to the and are also in that
+//?  TO TEST THE API ==> {"http://localhost:500/app/api/chat/fetchAllRelatedChat/id"}
+routes.get("/fetchAllRelatedChat/id", fetchusers, async (req, res) => {
+  try {
+    const FetchAllRelatedChat = await Chat.find({
+      IsGroupChat: true,
+    }).find({ $and: [{ users: req.user }, { users: req.params.id }] });
+    console.log(FetchAllRelatedChat);
   } catch (error) {
     console.log(error);
   }

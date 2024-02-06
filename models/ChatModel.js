@@ -17,6 +17,7 @@ const ChatSchema = new Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "users",
+        // Reference to your User model
       },
     ],
     LatestMessage: {
@@ -26,6 +27,9 @@ const ChatSchema = new Schema(
     GroupAdmin: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "users",
+    },
+    ProfileImage: {
+      type: String,
     },
   },
   { timestamps: true }
