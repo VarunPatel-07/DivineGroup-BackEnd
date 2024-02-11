@@ -196,7 +196,8 @@ routes.put(
 // * 3 => we also check that the user we want  to add are in the group ?
 // to test the api ==> {http://localhost:500/app/api/chat/addmembertochat/:id}
 routes.put(
-  "/addmembertochat/:id",
+  "/addMemberToChat/:id",
+  upload.none(),
   [
     body(
       "usersId",
@@ -211,6 +212,7 @@ routes.put(
       if (!result.isEmpty()) {
         return res.json({ result });
       }
+
       const chat = await Chat.findById(req.params.id);
 
       if (chat.users.includes(usersId)) {
@@ -224,7 +226,7 @@ routes.put(
       const UpdatedChat = await Chat.findByIdAndUpdate(
         req.params.id,
         {
-          $push: { users: usersId },
+          $push: { users: JSON.parse(usersId) },
         },
         {
           new: true,
@@ -250,7 +252,8 @@ routes.put(
 // * 3 => we also check that the user we want  to add are in the group ?
 // to test the api ==> {http://localhost:500/app/api/chat/addmembertochat/:id}
 routes.put(
-  "/removemember/:id",
+  "/removeMember/:id",
+  upload.none(),
   [
     body(
       "usersId",
@@ -270,21 +273,20 @@ routes.put(
       if (!chat.users.includes(usersId)) {
         return res.status(500).json({ message: "the user does not  exists" });
       }
+      console.log(chat.users);
 
-      console.log(chat.GroupAdmin.toString());
-      console.log(req.user);
-      if (chat.GroupAdmin.toString() !== req.user) {
-        return res.send({ message: "not allowed" });
-      }
-      const UpdatedChat = await Chat.findByIdAndUpdate(
-        req.params.id,
-        {
-          $pull: { users: usersId },
-        },
-        {
-          new: true,
-        }
-      );
+      // if (chat.GroupAdmin.toString() !== req.user) {
+      //   return res.send({ message: "not allowed" });
+      // }
+      // const UpdatedChat = await Chat.findByIdAndUpdate(
+      //   req.params.id,
+      //   {
+      //     $pull: { users: usersId },
+      //   },
+      //   {
+      //     new: true,
+      //   }
+      // );
       res
         .status(200)
         .json({ message: "the new member is added in the chat", UpdatedChat });

@@ -12,6 +12,14 @@ const MessageModelSchema = new Schema(
       require: true,
       trim: true,
     },
+    ContentImage: {
+      type: Array,
+    },
+    Edited: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
     ChatId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "chat",

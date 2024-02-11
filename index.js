@@ -26,27 +26,51 @@ const server = app.listen(port, () => {
 const io = require("socket.io")(server, {
   pingTimeout: 60000,
   cors: {
-    origin: "http://localhost:3000",
+    origin: true,
   },
 });
 io.on("connection", (socket) => {
-  console.log("connected to the socket successful");
   socket.on("initialize", (UserData) => {
     socket.join(UserData._id);
-    console.log(UserData._id);
     socket.emit("connected");
   });
-  socket.on("join chat", (Room) => {
-    console.log(`user joined to the ${Room}`);
+  socket.on("JoinChatRoom", (Room) => {
+    console.log(`user joined to the one ${Room}`);
+    socket.join(Room);
+    console.log(`user joined to the two ${Room}`);
   });
-  socket.on("NewMessage", (NewMessageReceived) => {
+
+  // typing
+  socket.on("startTyping", (Room) =>
+    socket.broadcast.emit("startTyping", Room)
+  );
+  socket.on("stopTyping", (Room) => socket.broadcast.emit("stopTyping", Room));
+  // IS new message received
+
+  socket.on("NewMessageSocket", (NewMessageReceived) => {
     var Chat = NewMessageReceived;
-    console.log(Chat);
     if (!Chat.ChatId.users)
       return console.log("chat.user is not defined", Chat.ChatId.users);
     Chat.ChatId.users.forEach((user) => {
-      if (user._id == NewMessageReceived.sender._id) return;
-      socket.in(user._id).emit("Message Received", NewMessageReceived);
+      if (user == NewMessageReceived.sender._id) {
+      } else {
+        socket.in(user).emit("MessageReceived", NewMessageReceived);
+      }
     });
+  });
+  socket.on("EditMessageSocket", (EditedMessageReceived) => {
+    var Chat = EditedMessageReceived;
+    console.log(Chat);
+    if (!Chat.ChatId.users)
+      return console.log("chat.user is not defined", Chat.ChatId.users);
+
+    socket.broadcast.emit("MessageEdited", EditedMessageReceived);
+  });
+  socket.on("DeleteMessageSocket", (DeletedMessageReceived) => {
+    socket.broadcast.emit("MessageDeleted", DeletedMessageReceived);
+  });
+  socket.off("initialize", () => {
+    console.log("USER DISCONNECTED");
+    socket.leave(UserData._id);
   });
 });

@@ -51,11 +51,7 @@ routes.post(
     } = req.body;
 
     try {
-      cloudinary.config({
-        cloud_name: process.env.CLOUD_NAME,
-        api_key: process.env.API_KEY,
-        api_secret: process.env.API_SECRET,
-      });
+      
       const TitleB64 = Buffer.from(imagearr.TitleImage[0].buffer).toString(
         "base64"
       );
