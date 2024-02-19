@@ -189,5 +189,16 @@ routes.delete(
     }
   }
 );
-
+routes.delete("/clearAllChats/:id", async (req, res) => {
+  try {
+    const chat = await MessageModel.find({ ChatId: req.params.id });
+   
+    chat.forEach(async (chatInfo) => {
+     
+      await MessageModel.findByIdAndDelete(chatInfo._id);
+    });
+    success = true
+    res.json({success})
+  } catch (error) {}
+});
 module.exports = routes;

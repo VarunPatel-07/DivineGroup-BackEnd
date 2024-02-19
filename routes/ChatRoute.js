@@ -55,7 +55,9 @@ routes.post("/createChat", upload.none(), fetchusers, async (req, res) => {
       );
 
       success = true;
-      res.status(200).json({ success, message: "Chat created successfully " });
+      res
+        .status(200)
+        .json({ success, message: "Chat created successfully ", FullChat });
     }
   } catch (error) {
     console.log(error);
@@ -144,7 +146,11 @@ routes.post(
         .populate("users", "-password")
         .populate("GroupAdmin", "-password");
       success = true;
-      res.send({ success, message: " Group Chat created successfully " });
+      res.send({
+        success,
+        message: "Group Chat created successfully ",
+        FullGroupChat,
+      });
     } catch (error) {
       console.log(error);
       return res.json({
@@ -161,10 +167,11 @@ routes.post(
 // to test the api ==> {http://localhost:500/app/api/chat/renamechat/:id}
 // 657b284166a55a37c800f1dc
 routes.put(
-  "/renamechat/:id",
-
+  "/renameChat/:id",
+  ProfileImageUploader,
   fetchusers,
   async (req, res) => {
+    const imagearr = req.files;
     try {
       const { chatName } = req.body;
 
@@ -172,6 +179,21 @@ routes.put(
       if (chatName) {
         NewChat.ChatName = chatName;
       }
+      if (imagearr === undefined || imagearr.ProfileImage === undefined) {
+      } else {
+        const ProfileImageB64 = Buffer.from(
+          imagearr.ProfileImage[0].buffer
+        ).toString("base64");
+        let ProfileImageURI =
+          "data:" +
+          imagearr.ProfileImage[0].mimetype +
+          ";base64," +
+          ProfileImageB64;
+        const CloudProfileImage = await handleCloudUpload(ProfileImageURI);
+        NewChat.ProfileImage = CloudProfileImage.secure_url;
+      }
+
+      console.log(NewChat);
       const updatedChat = await Chat.findByIdAndUpdate(
         req.params.id,
         {
@@ -180,9 +202,14 @@ routes.put(
         {
           new: true,
         }
-      );
+      )
+        .populate("users", "-password")
+        .populate("GroupAdmin", "-password");
+
+      console.log(updatedChat);
       res.status(200).json({ message: "the chat is updated", updatedChat });
     } catch (error) {
+      console.log(error);
       return res
         .status(500)
         .json({ message: "there is an error while renaming the chat " });
@@ -264,6 +291,7 @@ routes.put(
   async (req, res) => {
     try {
       const { usersId } = req.body;
+
       const result = validationResult(req);
       if (!result.isEmpty()) {
         return res.json({ result });
@@ -273,31 +301,40 @@ routes.put(
       if (!chat.users.includes(usersId)) {
         return res.status(500).json({ message: "the user does not  exists" });
       }
-      console.log(chat.users);
 
-      // if (chat.GroupAdmin.toString() !== req.user) {
-      //   return res.send({ message: "not allowed" });
-      // }
-      // const UpdatedChat = await Chat.findByIdAndUpdate(
-      //   req.params.id,
-      //   {
-      //     $pull: { users: usersId },
-      //   },
-      //   {
-      //     new: true,
-      //   }
-      // );
+      if (chat.GroupAdmin.toString() !== req.user) {
+        return res.send({ message: "not allowed" });
+      }
+      const UpdatedChat = await Chat.findByIdAndUpdate(
+        req.params.id,
+        {
+          $pull: { users: usersId },
+        },
+        {
+          new: true,
+        }
+      );
       res
         .status(200)
         .json({ message: "the new member is added in the chat", UpdatedChat });
     } catch (error) {
-      console.log(error);
       return res.status(500).json({
         message: "there is an error while adding user in the group",
       });
     }
   }
 );
+routes.delete("/DeleteALLChat/:id", async (req, res) => {
+  try {
+    const chat = await Chat.findOne({ _id: req.params.id });
+    if (!chat) {
+      return res.json({ message: "chat does not exist" });
+    }
+    await Chat.findByIdAndDelete(req.params.id);
+    console.log(chat);
+    return res.json({ message: "chat deleted", chat });
+  } catch (error) {}
+});
 //?  TO TEST THE API ==> {"http://localhost:500/app/api/chat/fetchAllUsersForChat"}
 routes.get("/fetchAllUsersForChat", fetchusers, async (req, res) => {
   try {
@@ -315,12 +352,18 @@ routes.get("/fetchAllUsersForChat", fetchusers, async (req, res) => {
 });
 // ? now we make an api rout that is used to fetch the group chat for the people in your chat is in to the and are also in that
 //?  TO TEST THE API ==> {"http://localhost:500/app/api/chat/fetchAllRelatedChat/id"}
-routes.get("/fetchAllRelatedChat/id", fetchusers, async (req, res) => {
+routes.get("/fetchAllRelatedChat/:id", fetchusers, async (req, res) => {
   try {
-    const FetchAllRelatedChat = await Chat.find({
-      IsGroupChat: true,
-    }).find({ $and: [{ users: req.user }, { users: req.params.id }] });
-    console.log(FetchAllRelatedChat);
+    console.log(req.params.id, req.user);
+    if (req.params.id == "undefined") {
+    } else {
+      const FetchAllRelatedChat = await Chat.find({
+        IsGroupChat: true,
+      }).find({ $and: [{ users: req.user }, { users: req.params.id }] });
+      // console.log(FetchAllRelatedChat);
+      success = true;
+      res.json({ success, FetchAllRelatedChat });
+    }
   } catch (error) {
     console.log(error);
   }

@@ -47,6 +47,9 @@ io.on("connection", (socket) => {
   socket.on("stopTyping", (Room) => socket.broadcast.emit("stopTyping", Room));
   // IS new message received
 
+  socket.on("NewChatCreatedBackendSocket", (NewChatInfo) => {
+    socket.broadcast.emit("NewChatCreated", NewChatInfo);
+  });
   socket.on("NewMessageSocket", (NewMessageReceived) => {
     var Chat = NewMessageReceived;
     if (!Chat.ChatId.users)
@@ -68,6 +71,23 @@ io.on("connection", (socket) => {
   });
   socket.on("DeleteMessageSocket", (DeletedMessageReceived) => {
     socket.broadcast.emit("MessageDeleted", DeletedMessageReceived);
+  });
+  socket.on("NewGroupCreatedBackEndSocket", (groupInformation) => {
+    socket.broadcast.emit("NewGroupCreated", groupInformation);
+  });
+  socket.on("ChatInfoUpdatedBackEndSocket", (UpdatedChatInfo) => {
+    socket.broadcast.emit("ChatInfoUpdated", UpdatedChatInfo);
+  });
+  socket.on("NewMemberADDInGroupBackEndSocket", (NewMemberInfo) => {
+    socket.broadcast.emit("NewMemberADDInGroup", NewMemberInfo);
+  });
+  socket.on("MemberRemovedFromGroupBackEndSocket", (removedUser) => {
+    console.log(removedUser);
+    socket.broadcast.emit("MemberRemovedFromGroup", removedUser);
+  });
+  socket.on("ChatDeletedBackEndSocket", (removedUser) => {
+    console.log(removedUser);
+    socket.broadcast.emit("ChatDeleted", removedUser);
   });
   socket.off("initialize", () => {
     console.log("USER DISCONNECTED");
