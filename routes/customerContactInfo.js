@@ -63,12 +63,12 @@ routes.post(
 );
 routes.get("/GetAllCustomer", fetchusers, async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 2; // Default to page 1 if not provided
+    const page = parseInt(req.query.page) || 1; // Default to page 1 if not provided
     const pageSize = parseInt(req.query.pageSize) || 10; // Default page size to 10 if not provided
     const All_Customer = await CustomerContactForm.find().sort({
       updatedAt: -1,
     });
-    console.log(page)
+  
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     const Filtered_Data = All_Customer.slice(startIndex, endIndex);

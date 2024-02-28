@@ -18,7 +18,10 @@ const { json } = require("express");
 const TwoStepVerification = require("../models/TwoStepVerify");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
-const { ProfileImageUploader , handleCloudUpload } = require("../middleware/Multer");
+const {
+  ProfileImageUploader,
+  handleCloudUpload,
+} = require("../middleware/Multer");
 const cloudinary = require("cloudinary").v2;
 let success = false;
 const saltRound = 10;
@@ -145,21 +148,21 @@ routes.post(
       return res.json({ result });
     }
     const { username, password } = req.body;
-    
+
     try {
       // with the help of debuging we are gating "username" , "password" from the body of the request
 
       let verificationMessage = "";
       let user = await Users.findOne({ username: username });
-      
+
       if (!user) {
         return res
           .status(200)
           .json({ message: "Sorry a user with this username dose not exists" });
       }
-     
+
       const comperPassword = await bcrypt.compare(password, user.password);
-      
+
       if (!comperPassword) {
         return res
           .status(200)
@@ -452,13 +455,22 @@ routes.post(
 );
 
 // ? 'FETCHING ALL USERS' // Post Request === 8 ===> this is the post request which is only done by admin
-//?  TO TEST THE API ==> {"http://localhost:500/app/api/auth/fetchallusers"}
-routes.post("/fetchallusers", fetchusers, async (req, res) => {
+//?  TO TEST THE API ==> {"http://localhost:500/app/api/auth/fetchAllUsers"}
+routes.get("/fetchAllUsers", fetchusers, async (req, res) => {
   try {
-    const Check = await Users.findById(req.user).select("role");
-    if (Check.role == "admin") {
-      const FetchAllUsers = await Users.find().find({ _id: { $ne: req.user } });
-      res.json(FetchAllUsers);
+    const PageNo = parseInt(req.query.PageNo) || 1;
+    const PageSize = parseInt(req.query.PageSize) || 10;
+    const startIndex = (PageNo - 1) * PageSize;
+    const endIndex = startIndex + PageSize;
+
+    const Check = await Users.findById(req.user).select("-password");
+
+    if (Check.role.toLowerCase() === "admin") {
+      const FetchAllUsers = await Users.find()
+        .find({ _id: { $ne: req.user } })
+        .select("-password");
+      const Filtered_Data = FetchAllUsers.slice(startIndex, endIndex);
+      res.json(Filtered_Data);
     } else {
       return res.json({ message: "only admin is allowed" });
     }
@@ -522,13 +534,11 @@ routes.post(
 // ? 'UPDATING THE USER INFO' // Post Request === 10 ===> this post request is used to update the user info but we dont give autharity to chane password to chane password we use the forget password methode
 //?  TO TEST THE API ==> {"http://localhost:500/app/api/auth/updateuserinfo"}
 
-
 routes.put(
   "/updateUserinfo",
   ProfileImageUploader,
   fetchusers,
   async (req, res) => {
-    
     const imagearr = req.files;
 
     try {
