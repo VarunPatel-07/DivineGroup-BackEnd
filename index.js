@@ -18,6 +18,7 @@ app.use(
   "/app/api/customerContactInfo",
   require("./routes/customerContactInfo")
 );
+app.use("/app/api/mail", require("./routes/Mail"));
 app.use("/app/api/chat", require("./routes/ChatRoute"));
 app.use("/app/api/message", require("./routes/MessageRoute"));
 const server = app.listen(port, () => {

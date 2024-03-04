@@ -20,6 +20,22 @@ const isImage = (req, file, callback) => {
     callback(new Error("only images is allow"));
   }
 };
+const isAllowedFormat = function (req, file, cb) {
+  const allowedFormats = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "application/pdf",
+    "text/csv",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+  ];
+  if (allowedFormats.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Invalid file format."));
+  }
+};
 
 const ImageUploader = multer({
   storage: imgconfig,
@@ -53,6 +69,20 @@ const SendChatImages = multer({
   },
 ]);
 
+const EmailImgAndFilesUploader = multer({
+  storage: imgconfig,
+  fileFilter: isAllowedFormat,
+}).fields([
+  {
+    name: "EmailImg",
+    maxCount: 100,
+  },
+  {
+    name: "EmailFiles",
+    maxCount: 100,
+  },
+]);
+
 // creating a function to upload image
 const handleCloudUpload = async (file) => {
   const response = await cloudinary.uploader.upload(file, {
@@ -60,9 +90,11 @@ const handleCloudUpload = async (file) => {
   });
   return response;
 };
+
 module.exports = {
   ImageUploader,
   ProfileImageUploader,
   handleCloudUpload,
   SendChatImages,
+  EmailImgAndFilesUploader,
 };

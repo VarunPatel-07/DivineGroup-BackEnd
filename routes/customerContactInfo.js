@@ -68,7 +68,7 @@ routes.get("/GetAllCustomer", fetchusers, async (req, res) => {
     const All_Customer = await CustomerContactForm.find().sort({
       updatedAt: -1,
     });
-  
+
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     const Filtered_Data = All_Customer.slice(startIndex, endIndex);
@@ -81,5 +81,21 @@ routes.get("/GetAllCustomer", fetchusers, async (req, res) => {
     });
   }
 });
-
+routes.get("/searchCustomer", fetchusers, async (req, res) => {
+  try {
+    const clientArr = await CustomerContactForm.find({
+      $or: [
+        { firstname: { $regex: req.query.search, $options: "i" } },
+        // { lastname: { $regex: req.query.search, $options: "i" } },
+        { email: { $regex: req.query.search, $options: "i" } },
+      ],
+    });
+    
+    success = true;
+    res.json({ clientArr, success });
+  } catch (error) {
+    console.log(error);
+    res.json({ message: "the error occurred in the search client route" });
+  }
+});
 module.exports = routes;
