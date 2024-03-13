@@ -102,5 +102,58 @@ routes.post(
     }
   }
 );
+routes.get("/fetchAllSentMail", fetchusers, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1; // Default to page 1 if not provided
+    const pageSize = parseInt(req.query.pageSize) || 10; // Default page size to 10 if not provided
+    const mail = await ClientsMails.find({ senderId: req.user })
+      .populate("senderId")
+      .populate("receiverId")
+      .sort({
+        updatedAt: -1,
+      });
 
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const Filtered_Data = mail.slice(startIndex, endIndex);
+    console.log(Filtered_Data);
+    success = true;
+    res.json({ success, Filtered_Data });
+  } catch (error) {
+    console.log(error);
+    res.json({
+      success,
+      message: "the error ocurred in the fetch all sent mail routes ",
+    });
+  }
+});
+routes.delete("/deleteCustomerMail", fetchusers, async (req, res) => {
+  try {
+    const { SelectedCustomer } = req.body;
+
+    SelectedCustomer?.forEach(async (element) => {
+      console.log("deleted");
+      const Delete_Customer = await ClientsMails.find({
+        _id: element._id,
+      });
+
+      if (Delete_Customer[0].senderId?.toString() !== req.user) {
+        res.json({ message: "not allowed" });
+        
+      } else {
+        await ClientsMails.findByIdAndDelete(Delete_Customer[0]._id);
+        success = true;
+        res.json({ success, message: "the mail is deleted successfully" });
+       
+      }
+    });
+  } catch (error) {
+    console.log(error);
+    res.json({
+      success,
+      message:
+        "the error accrued in the deleteCustomerMail all customer function",
+    });
+  }
+});
 module.exports = routes;

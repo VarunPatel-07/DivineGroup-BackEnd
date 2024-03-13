@@ -586,5 +586,24 @@ routes.put(
     }
   }
 );
-
+routes.post("/comparePassword", fetchusers, async (req, res) => {
+  try {
+    const { password } = req.body;
+    console.log(password)
+    const user = await Users.findById(req.user);
+   
+    const comperPassword = await bcrypt.compare(password, user.password);
+    if (comperPassword) {
+      success = true;
+      console.log(success)
+      res.json({ success });
+    } else {
+      success = false;
+      console.log(success)
+      res.json({ success });
+    }
+  } catch (error) {
+    console.log(error)
+  }
+});
 module.exports = routes;

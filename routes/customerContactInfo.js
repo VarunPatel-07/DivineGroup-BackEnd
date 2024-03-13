@@ -90,7 +90,7 @@ routes.get("/searchCustomer", fetchusers, async (req, res) => {
         { email: { $regex: req.query.search, $options: "i" } },
       ],
     });
-    
+
     success = true;
     res.json({ clientArr, success });
   } catch (error) {
@@ -98,4 +98,5 @@ routes.get("/searchCustomer", fetchusers, async (req, res) => {
     res.json({ message: "the error occurred in the search client route" });
   }
 });
+
 module.exports = routes;
