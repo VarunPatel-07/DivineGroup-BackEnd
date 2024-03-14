@@ -1,14 +1,16 @@
 {
-    "cSpell.words": [
-        "addproject",
-        "authtoken",
-        "cloudinary",
-        "comper",
-        "creat",
-        "fetchusers",
-        "imagearr",
-        "imgconfig",
-        "Pincode",
-        "userid"
-    ]
+  "cSpell.words": [
+    "addproject",
+    "authtoken",
+    "cloudinary",
+    "comper",
+    "creat",
+    "fetchusers",
+    "imagearr",
+    "imgconfig",
+    "Pincode",
+    "togeltwostepverification",
+    "toggletwostepverification",
+    "userid"
+  ]
 }

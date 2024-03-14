@@ -182,9 +182,9 @@ routes.post(
           TwoStepVerificationOTP,
           OneTimeVerificationsalt
         );
-        const twostepverifiy = new TwoStepVerification({
+        await OneTimePassword.create({
           owner: user._id,
-          verificationToken: hashedVerificationOTP,
+          oneTimeToken: hashedVerificationOTP,
         });
         // to verify it we will send it the user in the orignal form
         try {
@@ -204,7 +204,6 @@ routes.post(
           });
         }
 
-        await twostepverifiy.save();
         verificationMessage =
           "a verification otp is send to your email address because you enabeld the two step verification";
       }
@@ -223,7 +222,7 @@ routes.post(
         message: verificationMessage,
       });
     } catch (error) {
-      console.error(error.message);
+      console.error(error);
       success = false;
       res.status(500).json({ success, message: "internel server error" });
     }
@@ -368,6 +367,7 @@ routes.post(
         return res.json({ result });
       }
       const { email } = req.body;
+      console.log(email);
       const user = await Users.findOne({
         email: email,
       });
@@ -382,8 +382,9 @@ routes.post(
         owner: user._id,
       });
       if (CheckToken) {
-        res.json({
+        return res.json({
           success,
+          Is_token: true,
           message: "the token alredy exist try agani after an hour",
         });
       }
@@ -401,10 +402,26 @@ routes.post(
       });
       await SaveForgotPassToken.save();
       // then by email we are going to send that link to user
-      res.json(SaveForgotPassToken);
-      console.log(
-        `http://localhost:500/app/api/auth/reset-password?forgotPassToken=${ForgotPassTokenGenerater}&id=${user._id}`
-      );
+      try {
+        MailTransport.sendMail({
+          from: process.env.EMAIL_ADDRESS_OF_AUTHER,
+          to: user.email,
+          subject: "Email Verification",
+          html: VerificationEmailBody(
+            `http://localhost:3000/pages/auth/reset-password?forgotPassToken=${ForgotPassTokenGenerater}&id=${user._id}`
+          ),
+        });
+        success = true;
+        return res.json({ success });
+      } catch (error) {
+        success = false;
+        return res.json({
+          success,
+          error: error,
+          message:
+            "there is an error sending email please double chack your email",
+        });
+      }
     } catch (error) {
       success = false;
       res.status(500).json({ success, message: "internel server error" });
@@ -414,7 +431,7 @@ routes.post(
 
 // ? 'UPDATING THE PASSWORD' // Post Request === 7 ===> this route is used to change the password which is allready in the database
 //?  TO TEST THE API ==> {" http://localhost:500/app/api/auth/reset-password"}
-routes.post(
+routes.put(
   "/reset-password",
   TokenDecoder,
   [body("password", "password is required it can not be empty")],
@@ -425,14 +442,16 @@ routes.post(
         return res.json({ result });
       }
       const { password } = req.body;
+      console.log(password);
       const FindUser = await Users.findById(req.user);
       if (!FindUser) {
-        res.json({ success, message: "can not find user in database" });
+        return res.json({ success, message: "can not find user in database" });
       }
       // now we comper the new password with the exsting password and if the password is same then we dont save that
       const ComperNewPass = bcrypt.compareSync(password, FindUser.password);
       if (ComperNewPass) {
-        res.json({
+        return res.json({
+          samePass: true,
           message: "the new password can not be same as older password",
         });
       }
@@ -444,9 +463,11 @@ routes.post(
       await ForgotPass.findOneAndDelete({
         owner: FindUser._id,
       });
-      res.json(
-        `the orignal password:${password} ====== the hashed password ${NewHashedPassword}`
-      );
+      success = true;
+      return res.json({
+        success,
+        message: `the orignal password:${password} ====== the hashed password ${NewHashedPassword}`,
+      });
     } catch (error) {
       success = false;
       res.status(500).json({ success, message: "internel server error" });
@@ -483,13 +504,14 @@ routes.get("/fetchAllUsers", fetchusers, async (req, res) => {
 });
 
 // ? 'TWO STEP VERIFICATION' // Post Request === 9 ===> this post request is used to know that  twostep verification is on or off if it is on then we send otp when we login
-//?  TO TEST THE API ==> {"http://localhost:500/app/api/auth/togeltwostepverification"}
+//?  TO TEST THE API ==> {"http://localhost:500/app/api/auth/toggletwostepverification"}
 
-routes.post(
-  "/togeltwostepverification",
+routes.put(
+  "/toggletwostepverification",
   [body("accountPassword", "Plese Enter The Valid Otp Token").exists()],
   fetchusers,
   async (req, res) => {
+    console.log("hello");
     const result = validationResult(req);
     if (!result.isEmpty()) {
       return res.json({ result });
@@ -507,11 +529,14 @@ routes.post(
         user.password
       );
       if (!PasswordCompering) {
-        res.json({ message: "plese enter the valid password" });
+        success = false;
+        return res.json({ success, message: "plese enter the valid password" });
       }
       let veri = "";
+      console.log(user);
       if (user.twoStepVerification) {
         user.twoStepVerification = false;
+
         veri = "off";
       } else {
         user.twoStepVerification = true;
@@ -519,7 +544,13 @@ routes.post(
       }
 
       await user.save();
-      res.json({ message: `the two step verification is turned  ${veri}` });
+      success = true;
+      console.log("hello last");
+      res.json({
+        success,
+        veri,
+        message: `the two step verification is turned  ${veri}`,
+      });
     } catch (error) {
       success = false;
       console.log(error);
@@ -589,21 +620,47 @@ routes.put(
 routes.post("/comparePassword", fetchusers, async (req, res) => {
   try {
     const { password } = req.body;
-    console.log(password)
+    console.log(password);
     const user = await Users.findById(req.user);
-   
+
     const comperPassword = await bcrypt.compare(password, user.password);
+    console.log(comperPassword);
     if (comperPassword) {
       success = true;
-      console.log(success)
+
       res.json({ success });
     } else {
       success = false;
-      console.log(success)
+
       res.json({ success });
     }
   } catch (error) {
-    console.log(error)
+    console.log(error);
+  }
+});
+routes.put("/changePassword", fetchusers, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    console.log(newPassword);
+    const user = await Users.findById(req.user);
+    const ComperNewPass = bcrypt.compareSync(newPassword, user.password);
+    if (ComperNewPass) {
+      success = true;
+      return res.json({
+        success,
+        message: "the new password can not be same as older password",
+      });
+    }
+    // now we also hash the new password
+    const NewPassSalt = bcrypt.genSaltSync(saltRound);
+    const NewHashedPassword = bcrypt.hashSync(newPassword, NewPassSalt);
+    console.log(NewHashedPassword);
+    user.password = NewHashedPassword.trim();
+    await user.save();
+    success = true;
+    return res.json({ success, message: "the password changed successfully" });
+  } catch (error) {
+    console.log(error);
   }
 });
 module.exports = routes;
