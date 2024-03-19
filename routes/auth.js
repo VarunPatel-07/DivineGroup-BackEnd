@@ -9,7 +9,10 @@ const { body, validationResult } = require("express-validator");
 const OneTimePassword = require("../models/OneTimePass");
 const GenerateOTP = require("../helper/GenerateOtp");
 const MailTransport = require("../helper/SendMails");
-const { VerificationEmailBody } = require("../helper/VerificationMailBody");
+const {
+  VerificationEmailBody,
+  ResetPassWordMail,
+} = require("../helper/MailBody");
 const fetchusers = require("../middleware/fetchusers");
 const ForgotPassToken = require("../helper/ForgotPassTokenGenerater");
 const ForgotPass = require("../models/ForgotPassword");
@@ -100,7 +103,10 @@ routes.post(
       // ? we can also use gmail now but the email are dummy .................
       try {
         MailTransport.sendMail({
-          from: process.env.EMAIL_ADDRESS_OF_AUTHER,
+          from: {
+            name: "Divine Group",
+            address: process.env.EMAIL_ADDRESS_OF_AUTHER,
+          },
           to: user.email,
           subject: "Email Verification",
           html: VerificationEmailBody(GeneratedOneTimePass),
@@ -177,10 +183,10 @@ routes.post(
         const TwoStepVerificationOTP = GenerateOTP();
         // after generating the otp to store it in the database first we hash that otp and after that we store it in the database
 
-        const OneTimeVerificationsalt = bcrypt.genSaltSync(saltRound);
+        const OneTimeVerificationSalt = bcrypt.genSaltSync(saltRound);
         const hashedVerificationOTP = bcrypt.hashSync(
           TwoStepVerificationOTP,
-          OneTimeVerificationsalt
+          OneTimeVerificationSalt
         );
         await OneTimePassword.create({
           owner: user._id,
@@ -190,7 +196,10 @@ routes.post(
         try {
           // ? sending the mail
           MailTransport.sendMail({
-            from: process.env.EMAIL_ADDRESS_OF_AUTHER,
+            from: {
+              name: "Divine Group",
+              address: process.env.EMAIL_ADDRESS_OF_AUTHER,
+            },
             to: user.email,
             subject: "Two Step Verification Email",
             html: VerificationEmailBody(TwoStepVerificationOTP),
@@ -316,7 +325,10 @@ routes.post("/resendotp", fetchusers, async (req, res) => {
     });
 
     MailTransport.sendMail({
-      from: process.env.EMAIL_ADDRESS_OF_AUTHER,
+      from: {
+        name: "Divine Group",
+        address: process.env.EMAIL_ADDRESS_OF_AUTHER,
+      },
       to: user.email,
       subject: "Resend OTP For Email Verification",
       html: VerificationEmailBody(GeneratedOneTimePass),
@@ -404,10 +416,13 @@ routes.post(
       // then by email we are going to send that link to user
       try {
         MailTransport.sendMail({
-          from: process.env.EMAIL_ADDRESS_OF_AUTHER,
+          from: {
+            name: "Divine Group",
+            address: process.env.EMAIL_ADDRESS_OF_AUTHER,
+          },
           to: user.email,
-          subject: "Email Verification",
-          html: VerificationEmailBody(
+          subject: "Reset Password Mail",
+          html: ResetPassWordMail(
             `http://localhost:3000/pages/auth/reset-password?forgotPassToken=${ForgotPassTokenGenerater}&id=${user._id}`
           ),
         });
