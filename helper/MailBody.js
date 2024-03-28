@@ -3498,4 +3498,8 @@ const CustomerWelcomeMail = (name) => {
   `;
 };
 
-module.exports = { VerificationEmailBody, ResetPassWordMail , CustomerWelcomeMail };
+module.exports = {
+  VerificationEmailBody,
+  ResetPassWordMail,
+  CustomerWelcomeMail,
+};

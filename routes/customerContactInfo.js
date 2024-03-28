@@ -79,7 +79,9 @@ routes.get("/GetAllCustomer", fetchusers, async (req, res) => {
     const endIndex = startIndex + pageSize;
     const Filtered_Data = All_Customer.slice(startIndex, endIndex);
     success = true;
-    res.json({ success, Filtered_Data });
+    let totalInquire = All_Customer.length;
+    console.log(totalInquire)
+    res.json({ totalInquire: totalInquire, success, Filtered_Data });
   } catch (error) {
     res.json({
       success,

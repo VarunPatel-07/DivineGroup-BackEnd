@@ -586,25 +586,29 @@ routes.put(
   fetchusers,
   async (req, res) => {
     const imagearr = req.files;
-
+    
     try {
       cloudinary.config({
         cloud_name: process.env.CLOUD_NAME,
         api_key: process.env.API_KEY,
         api_secret: process.env.API_SECRET,
       });
-      const ProfileImageB64 = Buffer.from(
-        imagearr.ProfileImage[0].buffer
-      ).toString("base64");
-      let ProfileImageURI =
-        "data:" +
-        imagearr.ProfileImage[0].mimetype +
-        ";base64," +
-        ProfileImageB64;
-      const CloudProfileImage = await handleCloudUpload(ProfileImageURI);
+      const CloudProfileImag = [];
+      if (imagearr.ProfileImage) {
+        const ProfileImageB64 = Buffer.from(
+          imagearr.ProfileImage[0].buffer
+        ).toString("base64");
+        let ProfileImageURI =
+          "data:" +
+          imagearr.ProfileImage[0].mimetype +
+          ";base64," +
+          ProfileImageB64;
+        const imageURL = await handleCloudUpload(ProfileImageURI);
+        CloudProfileImag.push(imageURL.secure_url);
+      }
 
       const { name, username, email } = req.body;
-      console.log("CloudProfileImage", CloudProfileImage);
+      console.log(CloudProfileImag);
       const updatedUserInfo = {};
       if (name != "undefined") {
         updatedUserInfo.name = name;
@@ -615,7 +619,7 @@ routes.put(
       if (email != "undefined") {
         updatedUserInfo.email = email;
       }
-      updatedUserInfo.ProfileImage = CloudProfileImage.secure_url;
+      updatedUserInfo.ProfileImage = CloudProfileImag[0];
       const userInfo = await Users.findByIdAndUpdate(
         req.user,
         { $set: updatedUserInfo },
