@@ -586,7 +586,7 @@ routes.put(
   fetchusers,
   async (req, res) => {
     const imagearr = req.files;
-    
+
     try {
       cloudinary.config({
         cloud_name: process.env.CLOUD_NAME,
