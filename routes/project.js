@@ -51,7 +51,6 @@ routes.post(
     } = req.body;
 
     try {
-      
       const TitleB64 = Buffer.from(imagearr.TitleImage[0].buffer).toString(
         "base64"
       );
@@ -135,46 +134,100 @@ routes.get("/fetchSpecificProject/:id", fetchusers, async (req, res) => {
 // ? 'UPDATE PROJECT DETAILS' // 'PUT' Request === 4 ===> this is a put request which is used to update the project details
 //?  TO TEST THE API ==> {"http://localhost:500/app/api/project/updateProjectInfo/:id"}
 
-routes.put("/updateProjectInfo/:id", fetchusers, async (req, res) => {
-  const { projectName, summary, description, location } = req.body;
-  try {
-    const updatedProjectInfo = {};
-    if (projectName) {
-      updatedProjectInfo.projectName = projectName;
-    }
-    if (summary) {
-      updatedProjectInfo.summary = summary;
-    }
-    if (description) {
-      updatedProjectInfo.description = description;
-    }
-    if (location) {
-      updatedProjectInfo.location = location;
-    }
+routes.put(
+  "/updateProjectInfo/:id",
+  ImageUploader,
+  fetchusers,
+  async (req, res) => {
+    const {
+      ProjectName,
+      MetaData,
+      Description,
+      Address,
+      Pincode,
+      District,
+      private,
+    } = req.body;
+    console.log(req.params.id);
+    try {
+      const imagearr = req.files;
+      if (imagearr.TitleImage) {
+        const TitleB64 = Buffer.from(imagearr.TitleImage[0].buffer).toString(
+          "base64"
+        );
+        let TitleDataURI =
+          "data:" + imagearr.TitleImage[0].mimetype + ";base64," + TitleB64;
+        const CloudTitleImage = await handleCloudUpload(TitleDataURI);
+      }
+      if (imagearr.GalleryImage) {
+        let galleryImagePaths = imagearr.GalleryImage.map((images) => images);
 
-    let project = await Projects.findById(req.params.id);
-    if (!project) {
-      res.status(404).json({ message: "users not found" });
-    }
+        const CloudGalleryImage = [];
+        for (const SingleImage of galleryImagePaths) {
+          const GalleryBase64 = Buffer.from(SingleImage.buffer).toString(
+            "base64"
+          );
+          let GalleryImgDataURI =
+            "data:" + SingleImage.mimetype + ";base64," + GalleryBase64;
+          const CloudGalleryImg = await handleCloudUpload(GalleryImgDataURI);
 
-    if (project.userid.toString() !== req.user) {
-      res.status(405).json({ message: "you are not allowd " });
+          CloudGalleryImage.push(CloudGalleryImg.secure_url);
+        }
+      }
+
+      const updatedProjectInfo = {};
+      if (ProjectName) {
+        updatedProjectInfo.projectName = ProjectName;
+      }
+      if (MetaData) {
+        updatedProjectInfo.metadata = MetaData;
+      }
+      if (Description) {
+        updatedProjectInfo.description = Description;
+      }
+      if (Address) {
+        updatedProjectInfo.address = Address;
+      }
+      if (Pincode) {
+        updatedProjectInfo.pincode = Pincode;
+      }
+      if (District) {
+        updatedProjectInfo.district = District;
+      }
+      if (private) {
+        updatedProjectInfo.private = private;
+      }
+      if (imagearr?.TitleImage) {
+        updatedProjectInfo.TitleImage = CloudTitleImage.secure_url;
+      }
+      if (imagearr?.GalleryImage) {
+        updatedProjectInfo.GalleryImage = CloudGalleryImage;
+      }
+      let project = await Projects.findById(req.params.id);
+      if (!project) {
+        res.status(404).json({ message: "users not found" });
+      }
+
+      if (project.userid.toString() !== req.user) {
+        res.status(405).json({ message: "you are not allowd " });
+      }
+      console.log(updatedProjectInfo);
+      project = await Projects.findByIdAndUpdate(
+        req.params.id,
+        { $set: updatedProjectInfo },
+        { new: true }
+      );
+      success = true;
+      res.json({ success: success, message: "projects updated successfully" });
+    } catch (error) {
+      console.log(error);
+      success = false;
+      res
+        .status(500)
+        .json({ success, message: "internel server error at add note" });
     }
-    console.log("success 4");
-    project = await Projects.findByIdAndUpdate(
-      req.params.id,
-      { $set: updatedProjectInfo },
-      { new: true }
-    );
-    success = true;
-    res.json({ success: success, message: "projects updated successfully" });
-  } catch (error) {
-    success = false;
-    res
-      .status(500)
-      .json({ success, message: "internel server error at add note" });
   }
-});
+);
 
 // ? 'DELETE PROJECT' // 'DELETE' Request === 5 ===> this is a delete requrst which is used to delete the project
 //?  TO TEST THE API ==> {"http://localhost:500/app/api/project/DeleteProject/:id"}
