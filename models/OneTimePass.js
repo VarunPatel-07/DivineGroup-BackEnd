@@ -15,5 +15,5 @@ const OneTimePassSchema = new Schema({
     default: Date.now(),
   },
 });
-const OneTimePassword = mongoose.model('OneTimePassword' , OneTimePassSchema)
-module.exports = OneTimePassword
+const OneTimePassword = mongoose.model("OneTimePassword", OneTimePassSchema);
+module.exports = OneTimePassword;
