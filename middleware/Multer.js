@@ -8,7 +8,11 @@ cloudinary.config({
   api_secret: process.env.API_SECRET,
 });
 
-const imgconfig = multer.memoryStorage();
+const imgconfig = multer.memoryStorage({
+  destination: function (req, file, callback) {
+    callback(null, "");
+  },
+});
 const isImage = (req, file, callback) => {
   if (file.mimetype.startsWith("image")) {
     callback(null, true);
