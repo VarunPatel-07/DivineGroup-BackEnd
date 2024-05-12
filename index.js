@@ -7,8 +7,13 @@ var cors = require("cors");
 ConnectToMongo();
 const app = express();
 const port = process.env.APP_PORT;
-
-app.use(cors());
+const Cors_Config = {
+  origin: "*",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+};
+app.options("", cors(Cors_Config));
+app.use(cors(Cors_Config));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
