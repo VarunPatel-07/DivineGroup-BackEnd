@@ -151,29 +151,6 @@ routes.put(
     console.log(req.params.id);
     try {
       const imagearr = req.files;
-      if (imagearr.TitleImage) {
-        const TitleB64 = Buffer.from(imagearr.TitleImage[0].buffer).toString(
-          "base64"
-        );
-        let TitleDataURI =
-          "data:" + imagearr.TitleImage[0].mimetype + ";base64," + TitleB64;
-        const CloudTitleImage = await handleCloudUpload(TitleDataURI);
-      }
-      if (imagearr.GalleryImage) {
-        let galleryImagePaths = imagearr.GalleryImage.map((images) => images);
-
-        const CloudGalleryImage = [];
-        for (const SingleImage of galleryImagePaths) {
-          const GalleryBase64 = Buffer.from(SingleImage.buffer).toString(
-            "base64"
-          );
-          let GalleryImgDataURI =
-            "data:" + SingleImage.mimetype + ";base64," + GalleryBase64;
-          const CloudGalleryImg = await handleCloudUpload(GalleryImgDataURI);
-
-          CloudGalleryImage.push(CloudGalleryImg.secure_url);
-        }
-      }
 
       const updatedProjectInfo = {};
       if (ProjectName) {
@@ -197,12 +174,32 @@ routes.put(
       if (private) {
         updatedProjectInfo.private = private;
       }
-      if (imagearr?.TitleImage) {
+      if (imagearr.TitleImage) {
+        const TitleB64 = Buffer.from(imagearr.TitleImage[0].buffer).toString(
+          "base64"
+        );
+        let TitleDataURI =
+          "data:" + imagearr.TitleImage[0].mimetype + ";base64," + TitleB64;
+        const CloudTitleImage = await handleCloudUpload(TitleDataURI);
         updatedProjectInfo.TitleImage = CloudTitleImage.secure_url;
       }
-      if (imagearr?.GalleryImage) {
-        updatedProjectInfo.GalleryImage = CloudGalleryImage;
+      if (imagearr.GalleryImage) {
+        let galleryImagePaths = imagearr.GalleryImage.map((images) => images);
+
+        const CloudGalleryImage = [];
+        for (const SingleImage of galleryImagePaths) {
+          const GalleryBase64 = Buffer.from(SingleImage.buffer).toString(
+            "base64"
+          );
+          let GalleryImgDataURI =
+            "data:" + SingleImage.mimetype + ";base64," + GalleryBase64;
+          const CloudGalleryImg = await handleCloudUpload(GalleryImgDataURI);
+
+          CloudGalleryImage.push(CloudGalleryImg.secure_url);
+          updatedProjectInfo.GalleryImage = CloudGalleryImage;
+        }
       }
+
       let project = await Projects.findById(req.params.id);
       if (!project) {
         res.status(404).json({ message: "users not found" });
