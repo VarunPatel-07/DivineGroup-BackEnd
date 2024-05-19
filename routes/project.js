@@ -121,7 +121,7 @@ routes.get("/fetchAllUsersProject", fetchusers, async (req, res) => {
   }
 });
 
-routes.get("/fetchSpecificProject/:id", fetchusers, async (req, res) => {
+routes.get("/fetchSpecificProject/:id",  async (req, res) => {
   try {
     let project = await Projects.findById(req.params.id);
 
